@@ -59,6 +59,9 @@ std::istream& operator>>(std::istream& in, dataStruct& ds) {
     in >> Delimiter{ '(' } >> Delimiter{ ':' };
 
     for (int i = 0; i < 3; ++i) {
+        // The keys can appear in any order (key1, key2, key3).
+        // We check each key by name instead of relying on a fixed order.
+
         in >> key;
         if (!in) break;
 

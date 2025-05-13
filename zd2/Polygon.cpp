@@ -1,5 +1,7 @@
 #include "Polygon.h"
 #include <algorithm>
+#include <iterator>
+#include <numeric>
 
 Polygon::Polygon() {}
 
@@ -8,7 +10,7 @@ void Polygon::addPoint(const Point& p) {
 }
 
 int Polygon::getVertexCount() const {
-    return vertices.size();
+    return static_cast<int>(vertices.size());
 }
 
 const std::vector<Point>& Polygon::getPoints() const {
@@ -16,14 +18,13 @@ const std::vector<Point>& Polygon::getPoints() const {
 }
 
 bool Polygon::operator==(const Polygon& other) const {
-    if (vertices.size() != other.vertices.size()) return false;
-    return std::equal(vertices.begin(), vertices.end(), other.vertices.begin());
+    return vertices.size() == other.vertices.size() &&
+        std::equal(vertices.begin(), vertices.end(), other.vertices.begin());
 }
 
 std::ostream& operator<<(std::ostream& os, const Polygon& poly) {
-    os << poly.vertices.size() << " ";
-    for (const auto& p : poly.vertices) {
-        os << p << " ";
-    }
+    os << poly.getVertexCount() << " ";
+    std::for_each(poly.vertices.begin(), poly.vertices.end(),
+        [&os](const Point& p) { os << p << " "; });
     return os;
 }

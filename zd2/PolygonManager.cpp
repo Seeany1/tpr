@@ -4,6 +4,10 @@
 #include <fstream>
 #include <sstream>
 #include <stdexcept>
+#include <iterator>
+#include <functional>
+#include <numeric>
+#include <algorithm>
 
 Point PolygonManager::parsePoint(const std::string& str) {
     int x, y;
@@ -22,16 +26,17 @@ Polygon PolygonManager::parseLine(const std::string& line) {
 
     std::vector<std::string> point_strs;
     std::string point_str;
-    while (iss >> point_str) {
-        point_strs.push_back(point_str);
-    }
+    std::copy(std::istream_iterator<std::string>(iss),
+        std::istream_iterator<std::string>(),
+        std::back_inserter(point_strs));
 
     if (point_strs.size() != vertex_count) return poly;
 
     try {
-        for (const auto& str : point_strs) {
+        std::for_each(point_strs.begin(), point_strs.end(), [this, &poly](const std::string& str) {
             poly.addPoint(parsePoint(str));
-        }
+            });
+
     }
     catch (...) {
         return Polygon();
@@ -58,48 +63,63 @@ bool PolygonManager::loadFromFile(const std::string& filename) {
     return true;
 }
 
-int PolygonManager::echo(const Polygon& target) {
-    int count = 0;
-    std::vector<Polygon> result;
+struct EchoInserter {
+    const Polygon& target;
+    int count;
+    std::vector<Polygon>& result;
 
-    for (const auto& poly : polygons) {
+    EchoInserter(const Polygon& t, std::vector<Polygon>& r) : target(t), count(0), result(r) {}
+
+    void operator()(const Polygon& poly) {
         result.push_back(poly);
         if (poly == target) {
             result.push_back(poly);
-            count++;
+            ++count;
+        }
+    }
+};
+
+int PolygonManager::echo(const Polygon& target) {
+    std::vector<Polygon> result;
+    EchoInserter inserter(target, result);
+    std::for_each(polygons.begin(), polygons.end(), std::ref(inserter));
+    polygons = result;
+    return inserter.count;
+}
+
+struct PointBounds {
+    int min_x, max_x, min_y, max_y;
+
+    PointBounds(const std::vector<Point>& all_points) {
+        min_x = max_x = all_points[0].x;
+        min_y = max_y = all_points[0].y;
+
+        for (const auto& p : all_points) {
+            if (p.x < min_x) min_x = p.x;
+            if (p.x > max_x) max_x = p.x;
+            if (p.y < min_y) min_y = p.y;
+            if (p.y > max_y) max_y = p.y;
         }
     }
 
-    polygons = result;
-    return count;
-}
+    bool contains(const Point& p) const {
+        return (p.x >= min_x && p.x <= max_x && p.y >= min_y && p.y <= max_y);
+    }
+};
 
 bool PolygonManager::inFrame(const Polygon& query) {
     if (polygons.empty()) return false;
 
     std::vector<Point> all_points;
     for (const auto& poly : polygons) {
-        const auto& points = poly.getPoints();
-        all_points.insert(all_points.end(), points.begin(), points.end());
+        const auto& pts = poly.getPoints();
+        all_points.insert(all_points.end(), pts.begin(), pts.end());
     }
 
-    int min_x = all_points[0].x, max_x = all_points[0].x;
-    int min_y = all_points[0].y, max_y = all_points[0].y;
+    PointBounds bounds(all_points);
 
-    for (const auto& p : all_points) {
-        if (p.x < min_x) min_x = p.x;
-        if (p.y < min_y) min_y = p.y;
-        if (p.x > max_x) max_x = p.x;
-        if (p.y > max_y) max_y = p.y;
-    }
-
-    for (const auto& p : query.getPoints()) {
-        if (p.x < min_x || p.x > max_x || p.y < min_y || p.y > max_y) {
-            return false;
-        }
-    }
-
-    return true;
+    return std::all_of(query.getPoints().begin(), query.getPoints().end(),
+        [&bounds](const Point& p) { return bounds.contains(p); });
 }
 
 void PolygonManager::processCommands() {
@@ -130,3 +150,4 @@ void PolygonManager::processCommands() {
         }
     }
 }
+

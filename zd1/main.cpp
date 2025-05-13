@@ -6,51 +6,43 @@
 #include <iterator>
 #include <limits>
 #include <vector>
+#include <string>
+#include <sstream>
 
 #include "DataStruct.h"
 
 int main() {
     using DataStructs = std::vector<dataStruct>;
-
     DataStructs dataStructs{};
 
-    while (!std::cin.eof()) {
-        std::copy(
-            std::istream_iterator<dataStruct>{std::cin},
-            std::istream_iterator<dataStruct>{},
-            std::back_inserter(dataStructs)
-        );
+    std::string line;
+    while (std::getline(std::cin, line)) {
+        std::istringstream iss(line);
+        dataStruct ds;
+        iss >> ds;
 
-        if (!std::cin) {
-            std::cin.clear();
-            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+        if (!ds.invalid && iss) {
+            dataStructs.push_back(ds);
         }
     }
 
-    std::sort(
-        std::begin(dataStructs),
-        std::end(dataStructs),
-        [](const dataStruct& a, const dataStruct& b) {
-            if (a.key1 < b.key1) {
-                return true;
-            }
-            else if (a.key1 > b.key1) {
-                return false;
-            }
-
-            if (a.key2 < b.key2) {
-                return true;
-            }
-            else if (a.key2 > b.key2) {
-                return false;
-            }
-
-            return a.key3.length() < b.key3.length();
+    std::sort(dataStructs.begin(), dataStructs.end(), [](const dataStruct& a, const dataStruct& b) {
+        if (a.key1 < b.key1) return true;
+        if (a.key1 > b.key1) return false;
+        if (a.key2 < b.key2) return true;
+        if (a.key2 > b.key2) return false;
+        return a.key3.length() < b.key3.length();
         });
 
+    dataStructs.erase(
+        std::unique(dataStructs.begin(), dataStructs.end(), [](const dataStruct& a, const dataStruct& b) {
+            return a.key1 == b.key1 && a.key2 == b.key2 && a.key3 == b.key3;
+            }),
+        dataStructs.end()
+    );
+
     std::copy(
-        std::begin(dataStructs),
-        std::end(dataStructs),
+        dataStructs.begin(), dataStructs.end(),
         std::ostream_iterator<dataStruct>{std::cout, "\n"}
     );
 
